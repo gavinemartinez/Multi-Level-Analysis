@@ -1,0 +1,201 @@
+---
+title: 'Part III: Modeling Results'
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+Libraries
+
+```{r}
+library(dplyr)
+library(magrittr)
+library(lme4)
+library(ggplot2)
+```
+
+Data
+
+```{r}
+NBA <- read.csv('https://raw.githubusercontent.com/erikgregorywebb/datasets/master/nba-salaries.csv')
+NBA$season.c <- NBA$season - mean(NBA$season)
+NBA$salaryM <- NBA$salary/1000000
+
+table(NBA$team)
+NBA[NBA$team == 'null Unknown',]
+NBA <- NBA[-c(4555,4672,5303,5622,6621,8195,8330,2762,2877,4352,4957,5157,5336,6465,2404,2410,2866,2878,2879,2884,2887,2893,3379,3389,3390,3391,3392,3394,3395,3401,3861,3875,3878,4339, 4343,4380,4381,4383,4400,4419,4433,4917,4925,4938,4947,4982,4986,4989,5004,5578,5591,5613,5625,5664,5672,5677,5686,5700),]
+
+NBA %<>%
+  mutate(team = ifelse(team %in% c('Atlanta Hawks'), 'Hawks',
+                       ifelse(team %in% c('Brooklyn Nets', 'New Jersey Nets'), 'Nets',
+                              ifelse(team %in% c('Charlotte Bobcats', 'Charlotte Hornets'), 'Hornets',
+                                     ifelse(team == "Boston Celtics", 'Celtics',
+                                            ifelse(team %in% c('Chicago Bulls'), 'Bulls',
+                                                   ifelse(team == 'Cleveland Cavaliers', 'Cavs',
+                                                          ifelse(team == 'Dallas Mavericks', 'Mavericks',
+                                                                 ifelse(team == 'Denver Nuggets', 'Nuggets',
+                                                                        ifelse(team == 'Detroit Pistons', 'Pistons',
+                                                                               ifelse(team == 'Golden State Warriors', 'Warriors',
+                                                                                      ifelse(team == 'Houston Rockets', 'Rockets',
+                                                                                             ifelse(team == 'Indiana Pacers', 'Pacers',
+                                                                                                    ifelse(team %in% c('LA Clippers','Los Angeles Clippers'), 'Clippers',
+                                                                                                           ifelse(team == 'Los Angeles Lakers', 'Lakers',
+                                                                                                                  ifelse(team %in% c('Memphis Grizzlies', 'Vancouver Grizzlies'), 'Grizzlies',
+                                                                                        
+                                                                                                                         ifelse(team == 'Miami Heat', 'Heat',
+                                                                                                                                ifelse(team == 'Milwaukee Bucks', 'Bucks',
+                                                                                                                                       ifelse(team == 'Minnesota Timberwolves', 'Timberwolves',
+                                                                                                                                              ifelse(team %in% c('New Orleans Hornets', 'New Orleans Pelicans', 'NO/Oklahoma City\n Hornets', 'NO/Oklahoma City Hornets'), 'Pelicans', 
+                                                                                        
+                                                                                                                                                     ifelse(team == 'New York Knicks', 'Knicks',
+                                                                                                                                                            ifelse(team %in% c('Oklahoma City Thunder', 'Seattle SuperSonics'), 'Thunder',
+                                                                                                                                                                   ifelse(team == 'Orlando Magic', 'Magic',
+                                                                                                                                                                          ifelse(team == 'Philadelphia 76ers', '76ers',
+                                                                                                                                                                                 ifelse(team == 'Phoenix Suns', 'Suns',
+                                                                                                                                                                                        ifelse(team == 'Portland Trail Blazers', 'Trail Blazers',
+                                                                                                                                                                                               ifelse(team == 'Sacramento Kings', 'Kings',
+                                                                                                                                                                                                      ifelse(team == 'San Antonio Spurs', 'Spurs',
+                                                                                                                                                                                                             ifelse(team == 'Toronto Raptors', 'Raptors',
+                                                                                                                                                                                                                    ifelse(team == 'Utah Jazz', 'Jazz',
+                                                                                                                                                                                                                           ifelse(team == 'Washington Wizards', 'Wizards', NA)))))))))))))))))))))))))))))))
+
+NBA %<>% 
+  mutate(position = ifelse(position %in% c(' PF', ' SF', ' GF'), 'F',
+                           ifelse(position %in% c(' SG', " PG"), 'G',
+                                  ifelse(position == ' C', 'C', position))))
+NBA <- NBA[NBA$position %in% c('G', 'F', 'C'),]
+```
+
+1.  ggplot(NBA, aes(x = name , y = salaryM) +
+
+    geom_boxplot()+
+
+    theme_bw())
+
+2.  Include a graph exploring the variability in the response variable across the Level-2 units. Fit an ANOVA using OLS for your response variable and the Level-2 group variable. Does the group effect appear to be statistically significant?
+
+    ```{r}
+    library(ggplot2)
+    ggplot(data = NBA, aes(x = name, y = salaryM))+
+      geom_boxplot() +
+      labs(title = 'Salaries Among NBA players',
+           subtitle = 'In Millions of Dollars',
+           xlab = NULL) +
+      theme(axis.text.x = NULL)
+
+
+    ```
+
+**The bocplot plot shows varying distributions of salaries. The ANOVA using OLS also indicates that there is significant player to player variation in mean salaries (1504 and 6608 DF, F-value = 4.702, p-value \< 2e-16).**
+
+2\. Fit the "intercepts only" model. Interpret each of the estimated parameters in context. Interpret the intraclass correlation coefficient in context. Does the value of the ICC seem "substantial" to you? Report the likelihood, deviance, and AIC values for later comparison.
+
+```{r}
+model0 = lmer(salaryM ~ 1 + (1 | name), data = NBA)
+summary(model0)
+
+AIC(model0)
+logLik(model0)
+deviance(model0, REML = F)
+```
+
+**Overrall intercept:** **The predicted average salary for an average NBA team is about 3.6731 million.**
+
+$\tau^2$ **= The estimated variation in average salaries among NBA players is about 10.20**
+
+$\sigma^2$ = T**he estimated variation in salaries between salary observations from the same player is about 17.57**
+
+**ICC =** $\tau^2/\tau^2+\sigma^2$ **---\> How correlated two salary observations for the same player.**
+
+**= 10.20/10.20+17.57**
+
+**= .3673**
+
+**The ICC is fairly small but does seem to be substantial.\
+**
+
+**AIC = 48193.42**
+
+**Deviance = 48184.66**
+
+**logLik = -24093.71**
+
+3\. Add 1-3 Level 1 variables. Carry out a likelihood ratio test to compare this model to the model in step 2 (using ML, clearly explain how you find the chi-square value and df). Include details. Also report/compare the AIC values to the intercepts only model. Calculate a "proportion of variation explained" for each variable (and what variation) and interpret the results in context. Did the Level 2 variance decrease? What does the tell you? Remove (one at a time) any insignificant variables.
+
+)
+
+```{r}
+model1 <- lmer(salaryM ~ season.c + (1|name), data = NBA)
+summary(model1)
+summary(model0)
+
+anova(model0, model1) #X^2 = 392.12, DF = 1, p-value <2.2e-16
+```
+
+**Based on the likelihood ratio tests we can see that model 1 is significantly better than model 0 (reasoning is commented next to code). However, it does slightly increase Level 2 variance, which means that the despite the positive association between salary and season, after adjusting for player, we might see a different relationship between year and salary. Going from Model0 to Model1, the AIC is smaller by about 400, BIC is smaller by about 200 and logLik is larger by about 200 as well. The deviance is also smaller by about 400.**
+
+**Change in Level 1 variance : 17.57-16.22/17.57 = 7.68% decrease**
+
+**Change in Level 2 variance: 10.20-12/10.20 = 17.64% increase**
+
+4\. Add 1-3 Level 2 variables. Carry out a likelihood ratio test to compare the models (using ML). Include details. Also report/compare the AIC values. Calculate a "proportion of variation explained" for each level and interpret the results in context. Remove (one at a time) any insignificant variables.
+
+```{r}
+model2 <- lmer(salaryM ~ season.c + position + (1|name), data = NBA)
+summary(model2)
+
+anova(model1, model2) #X^2 = 15.194, DF = 2, p-value = .0005
+```
+
+**Via the likelihood ratio test, we can see that the model with the position (Level 2 variable) is better at predicting salaries (reasoning commented in code). The AIC and BIC decrease by more than 10, the logLik increases by about 7, and the deviance decreases by about 10 as well.**
+
+**Change in Level 2 variance: 17.57-16.21/17.57 = 7.74% decrease**
+
+**Change in Level 1 variance: 10.20-11.93/ 10.20 = 16.96% increase**
+
+5\. Consider random slopes for one Level 1 variable. (This could be one of the variables that was removed earlier...) Include a graph illustrating variability in the estimated random slopes and discuss what you learn in context. Interpret the amount of group-to-group variation in these slopes in context. Once you have a model with at least one set of random slopes, compare this model to the model in step 4, is adding random slopes a significant improvement (REML, be clear how you are determining degrees of freedom)?
+
+```{r}
+model3 <- lmer(salaryM ~ season.c + position + (1+season.c|name), data= NBA)
+summary(model3)
+
+
+preds = predict(model0, newdata = NBA)
+ggplot(NBA, aes(x = season.c , y = preds , group = name, color = name)) +
+geom_smooth(method = "lm", alpha = .5, se = FALSE) +
+geom_point(data = NBA, aes(y = salaryM, color=name), alpha = .5) +
+  theme_bw() +
+  theme(legend.position = 'none') +
+  labs(title = 'Random Slopes for Season.c by Player',
+       x = 'Season(centered)',
+       y = 'Preds')
+
+anova(model2, model3)
+```
+
+**The variability in the effect of season on slope from player to player is given by** $\tau_1^2$ **= .4768. We can see from the graph that players with lower salaries in 2011 (the average season in the dataset) see a much larger effect of season.c on their salaries, on average.**
+
+**The loglikelihood ratio test shows that the model with random slopes is significantly better at predicting salaries than the model without (chi-squared = 2671.4, DF = 2, p-value = 2.2e-16)**
+
+6\. Add and interpret a cross-level interaction (you may have to use insignificant variables, focus on interpreting the interaction). Are you able to explain much of the slope variation you found in step 5? Is this a significantly better model?
+
+```{r}
+model4 <- lmer(salaryM ~ season.c + position + season.c*position + (1+ season.c | name), data = NBA)
+summary(model4)
+```
+
+**The predicted decrease in season.c's effect on salary for an average forward in the NBA is 0.03307.**
+
+**The predicted increase in the season.c's effect on salary for an average guard in the NBA is .02227.**
+
+**Change in random slopes variance coefficient :**
+
+**.4768-.4777/.4768 = .0018 increase**
+
+**We see less than a 1% change in the variability between slopes from player to player.**
+
+```{r}
+anova(model3,model4)
+```
+
+**Adding the interaction term does not prove to be significantly better than the model without an interaction term (chi-squared = 1.2263, DF = 2, p-value = .5416).**
